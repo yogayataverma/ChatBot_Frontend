@@ -19,7 +19,7 @@ const Chat = () => {
     // Initialize socket connection with error handling
     useEffect(() => {
         try {
-            socketRef.current = io('http://localhost:4000', {
+            socketRef.current = io('https://chatbot-backend-etdm.onrender.com', {
                 reconnection: true,
                 reconnectionAttempts: 5,
                 reconnectionDelay: 1000,
