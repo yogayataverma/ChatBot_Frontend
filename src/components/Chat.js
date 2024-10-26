@@ -2,11 +2,8 @@ import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import './Chat.css';  // Assuming you have this CSS file
 
-// Socket.IO connection - ensure HTTPS and no port number for Render
-const socket = io('https://chatbot-backend-etdm.onrender.com', {
-    transports: ['websocket', 'polling'],  // Ensure proper transports for better compatibility
-    withCredentials: true
-});
+// Connect to the backend
+const socket = io('https://chatbot-backend-etdm.onrender.com:5000/');
 
 const Chat = () => {
     const [message, setMessage] = useState('');
@@ -81,7 +78,9 @@ const Chat = () => {
             <h1 className="chat-title">Connectify</h1>
             <div className="chat-window">
                 {messages.map((msg, index) => (
-                    <div key={index} className={`chat-message ${msg.sender === 'me' ? 'chat-message-right' : 'chat-message-left'}`}>
+                    <div
+                        key={index}
+                        className={`chat-message ${msg.sender === 'me' ? 'chat-message-right' : 'chat-message-left'}`}>
                         <p>{msg.text}</p>
                     </div>
                 ))}
