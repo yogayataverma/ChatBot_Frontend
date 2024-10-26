@@ -3,9 +3,7 @@ import io from 'socket.io-client';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import './Chat.css';
 
-// Connect to your backend server
-const socket = io('https://chatbot-backend-etdm.onrender.com');
-
+// Move socket initialization inside the component to avoid shared state across instances
 const Chat = () => {
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
@@ -16,48 +14,56 @@ const Chat = () => {
     const [isConnected, setIsConnected] = useState(false);
     const chatWindowRef = useRef(null);
     const notificationSound = useRef(new Audio('/notification.mp3'));
+    const socketRef = useRef(null);
+
+    // Initialize socket connection
+    useEffect(() => {
+        socketRef.current = io('https://chatbot-backend-etdm.onrender.com');
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+        };
+    }, []);
 
     // Initialize device fingerprint
     useEffect(() => {
-        let mounted = true;
-
         const initializeDevice = async () => {
             try {
                 const id = await getDeviceFingerprint();
-                if (mounted) {
-                    setDeviceId(id);
-                    socket.emit('registerDevice', { deviceId: id });
+                setDeviceId(id);
+                if (socketRef.current) {
+                    socketRef.current.emit('registerDevice', { deviceId: id });
                     setIsConnected(true);
-                    console.log('Device registered:', id);
                 }
             } catch (error) {
                 console.error('Error initializing device:', error);
-                if (mounted) {
-                    // Fallback to random ID if fingerprinting fails
-                    const fallbackId = 'user-' + Math.random().toString(36).substr(2, 9);
-                    setDeviceId(fallbackId);
-                    socket.emit('registerDevice', { deviceId: fallbackId });
+                const fallbackId = 'user-' + Math.random().toString(36).substr(2, 9);
+                setDeviceId(fallbackId);
+                if (socketRef.current) {
+                    socketRef.current.emit('registerDevice', { deviceId: fallbackId });
                     setIsConnected(true);
                 }
             }
         };
 
         initializeDevice();
+    }, []);
 
+    // Cleanup effect for device unregistration
+    useEffect(() => {
         return () => {
-            mounted = false;
-            if (isConnected && deviceId) {
-                socket.emit('unregisterDevice', { deviceId });
+            if (isConnected && deviceId && socketRef.current) {
+                socketRef.current.emit('unregisterDevice', { deviceId });
             }
         };
-    }, []);
+    }, [isConnected, deviceId]);
 
     // Notification permission
     const requestNotificationPermission = async () => {
         try {
             const permission = await Notification.requestPermission();
             setNotificationPermission(permission);
-            console.log('Notification permission:', permission);
         } catch (error) {
             console.error('Error requesting notification permission:', error);
         }
@@ -99,9 +105,10 @@ const Chat = () => {
 
     // Socket event handlers
     useEffect(() => {
-        if (!deviceId) return;
+        if (!deviceId || !socketRef.current) return;
 
-        // Previous messages
+        const socket = socketRef.current;
+
         socket.on('previousMessages', (msgs) => {
             setMessages(msgs.map(msg => ({
                 ...msg,
@@ -110,7 +117,6 @@ const Chat = () => {
             scrollToBottom();
         });
 
-        // New message
         socket.on('message', (msg) => {
             setMessages(prev => [...prev, {
                 ...msg,
@@ -120,12 +126,10 @@ const Chat = () => {
             scrollToBottom();
         });
 
-        // User status
         socket.on('userStatus', (data) => {
             setUserStatus(data.status);
         });
 
-        // Error handling
         socket.on('error', (error) => {
             console.error('Socket error:', error);
         });
@@ -139,16 +143,16 @@ const Chat = () => {
     }, [deviceId, showNotification]);
 
     // Scroll chat to bottom
-    const scrollToBottom = () => {
+    const scrollToBottom = useCallback(() => {
         if (chatWindowRef.current) {
             chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
         }
-    };
+    }, []);
 
     // Send message
     const sendMessage = (e) => {
         e.preventDefault();
-        if (message.trim() && deviceId) {
+        if (message.trim() && deviceId && socketRef.current) {
             const newMessage = {
                 text: message,
                 sender: deviceId,
@@ -156,7 +160,7 @@ const Chat = () => {
                 isMe: true
             };
             
-            socket.emit('chatMessage', newMessage);
+            socketRef.current.emit('chatMessage', newMessage);
             setMessages(prev => [...prev, newMessage]);
             setMessage('');
             scrollToBottom();
@@ -164,12 +168,12 @@ const Chat = () => {
     };
 
     // Format timestamp
-    const formatTime = (timestamp) => {
+    const formatTime = useCallback((timestamp) => {
         return new Date(timestamp).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit'
         });
-    };
+    }, []);
 
     return (
         <div className="chat-container">
