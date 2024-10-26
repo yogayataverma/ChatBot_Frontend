@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import './Chat.css';
-import notificationSoundFile from '../assets/notification.mp3';
+import notificationSoundFile from './notification.mp3';
 
 const Chat = () => {
     const [message, setMessage] = useState('');
