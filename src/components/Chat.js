@@ -19,26 +19,34 @@ const Chat = () => {
 
     // Initialize device fingerprint
     useEffect(() => {
+        let mounted = true;
+
         const initializeDevice = async () => {
             try {
                 const id = await getDeviceFingerprint();
-                setDeviceId(id);
-                socket.emit('registerDevice', { deviceId: id });
-                setIsConnected(true);
-                console.log('Device registered:', id);
+                if (mounted) {
+                    setDeviceId(id);
+                    socket.emit('registerDevice', { deviceId: id });
+                    setIsConnected(true);
+                    console.log('Device registered:', id);
+                }
             } catch (error) {
                 console.error('Error initializing device:', error);
-                // Fallback to random ID if fingerprinting fails
-                const fallbackId = 'user-' + Math.random().toString(36).substr(2, 9);
-                setDeviceId(fallbackId);
-                socket.emit('registerDevice', { deviceId: fallbackId });
+                if (mounted) {
+                    // Fallback to random ID if fingerprinting fails
+                    const fallbackId = 'user-' + Math.random().toString(36).substr(2, 9);
+                    setDeviceId(fallbackId);
+                    socket.emit('registerDevice', { deviceId: fallbackId });
+                    setIsConnected(true);
+                }
             }
         };
 
         initializeDevice();
 
         return () => {
-            if (isConnected) {
+            mounted = false;
+            if (isConnected && deviceId) {
                 socket.emit('unregisterDevice', { deviceId });
             }
         };
@@ -120,7 +128,6 @@ const Chat = () => {
         // Error handling
         socket.on('error', (error) => {
             console.error('Socket error:', error);
-            // You could add a toast notification here
         });
 
         return () => {
@@ -150,7 +157,6 @@ const Chat = () => {
             };
             
             socket.emit('chatMessage', newMessage);
-
             setMessages(prev => [...prev, newMessage]);
             setMessage('');
             scrollToBottom();
