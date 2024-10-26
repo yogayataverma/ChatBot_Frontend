@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
+import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import './Chat.css';
 
+// Connect to your backend server
 const socket = io('https://chatbot-backend-etdm.onrender.com');
 
 const Chat = () => {
@@ -10,51 +12,64 @@ const Chat = () => {
     const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
     const [isTabActive, setIsTabActive] = useState(true);
     const [userStatus, setUserStatus] = useState('offline');
+    const [deviceId, setDeviceId] = useState('');
+    const [isConnected, setIsConnected] = useState(false);
     const chatWindowRef = useRef(null);
-    
-    // Store the current user's identifier
-    const [userId] = useState('me'); // You could also get this from props or context
-    
     const notificationSound = useRef(new Audio('/notification.mp3'));
 
-    const scrollToBottom = () => {
-        if (chatWindowRef.current) {
-            chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-        }
-    };
+    // Initialize device fingerprint
+    useEffect(() => {
+        const initializeDevice = async () => {
+            try {
+                const id = await getDeviceFingerprint();
+                setDeviceId(id);
+                socket.emit('registerDevice', { deviceId: id });
+                setIsConnected(true);
+                console.log('Device registered:', id);
+            } catch (error) {
+                console.error('Error initializing device:', error);
+                // Fallback to random ID if fingerprinting fails
+                const fallbackId = 'user-' + Math.random().toString(36).substr(2, 9);
+                setDeviceId(fallbackId);
+                socket.emit('registerDevice', { deviceId: fallbackId });
+            }
+        };
 
+        initializeDevice();
+
+        return () => {
+            if (isConnected) {
+                socket.emit('unregisterDevice', { deviceId });
+            }
+        };
+    }, []);
+
+    // Notification permission
     const requestNotificationPermission = async () => {
         try {
             const permission = await Notification.requestPermission();
             setNotificationPermission(permission);
-            if (permission === 'granted') {
-                console.log('Notification permission granted');
-            } else {
-                console.log('Notification permission denied');
-            }
+            console.log('Notification permission:', permission);
         } catch (error) {
             console.error('Error requesting notification permission:', error);
         }
     };
 
+    // Show notification
     const showNotification = useCallback((msg) => {
         try {
-            notificationSound.current.play().catch(error => {
-                console.log('Error playing notification sound:', error);
-            });
+            notificationSound.current.play().catch(console.error);
         } catch (error) {
-            console.log('Error with audio playback:', error);
+            console.error('Error playing notification sound:', error);
         }
 
         if (notificationPermission === 'granted' && !isTabActive) {
             try {
                 const notification = new Notification('New Message in Connectify', {
-                    body: `${msg.sender}: ${msg.text}`,
+                    body: `${msg.sender === deviceId ? 'You' : 'Other'}: ${msg.text}`,
                     icon: '/chat-icon.png',
                     badge: '/chat-badge.png',
-                    vibrate: [200, 100, 200],
-                    tag: 'Connectify Message',
-                    renotify: true
+                    vibrate: [200, 100, 200]
                 });
 
                 notification.onclick = () => {
@@ -65,108 +80,89 @@ const Chat = () => {
                 console.error('Error showing notification:', error);
             }
         }
-    }, [notificationPermission, isTabActive]);
+    }, [notificationPermission, isTabActive, deviceId]);
 
+    // Tab visibility
     useEffect(() => {
-        const handleVisibilityChange = () => {
-            setIsTabActive(!document.hidden);
-        };
-
+        const handleVisibilityChange = () => setIsTabActive(!document.hidden);
         document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
+    // Socket event handlers
     useEffect(() => {
-        requestNotificationPermission();
-    }, []);
+        if (!deviceId) return;
 
-    useEffect(() => {
-        // Handle previous messages with correct isMe flag
+        // Previous messages
         socket.on('previousMessages', (msgs) => {
             setMessages(msgs.map(msg => ({
-                text: msg.text,
-                sender: msg.sender,
-                timestamp: msg.timestamp,
-                isMe: msg.sender === userId // Compare with current user's ID
+                ...msg,
+                isMe: msg.sender === deviceId
             })));
             scrollToBottom();
         });
 
-        // Handle incoming messages
+        // New message
         socket.on('message', (msg) => {
-            console.log('New message received:', msg);
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                { 
-                    text: msg.text, 
-                    sender: msg.sender,
-                    timestamp: msg.timestamp,
-                    isMe: msg.sender === userId // Compare with current user's ID
-                }
-            ]);
+            setMessages(prev => [...prev, {
+                ...msg,
+                isMe: msg.sender === deviceId
+            }]);
             showNotification(msg);
             scrollToBottom();
         });
 
+        // User status
         socket.on('userStatus', (data) => {
             setUserStatus(data.status);
         });
 
+        // Error handling
         socket.on('error', (error) => {
             console.error('Socket error:', error);
+            // You could add a toast notification here
         });
 
         return () => {
-            socket.off('message');
             socket.off('previousMessages');
+            socket.off('message');
             socket.off('userStatus');
             socket.off('error');
         };
-    }, [showNotification, userId]); // Added userId to dependencies
+    }, [deviceId, showNotification]);
 
+    // Scroll chat to bottom
+    const scrollToBottom = () => {
+        if (chatWindowRef.current) {
+            chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+        }
+    };
+
+    // Send message
     const sendMessage = (e) => {
         e.preventDefault();
-        if (message.trim()) {
-            const newMessage = { 
-                text: message, 
-                sender: userId, // Use userId instead of hardcoded 'me'
+        if (message.trim() && deviceId) {
+            const newMessage = {
+                text: message,
+                sender: deviceId,
                 timestamp: new Date(),
                 isMe: true
             };
+            
             socket.emit('chatMessage', newMessage);
 
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                newMessage
-            ]);
-
+            setMessages(prev => [...prev, newMessage]);
             setMessage('');
             scrollToBottom();
         }
     };
 
+    // Format timestamp
     const formatTime = (timestamp) => {
-        return new Date(timestamp).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+        return new Date(timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
         });
-    };
-
-    const renderNotificationButton = () => {
-        if (notificationPermission === 'default') {
-            return (
-                <button 
-                    className="notification-permission-button"
-                    onClick={requestNotificationPermission}
-                >
-                    Enable Notifications
-                </button>
-            );
-        }
-        return null;
     };
 
     return (
@@ -177,21 +173,35 @@ const Chat = () => {
                     {userStatus === 'online' ? 'Online' : 'Offline'}
                 </div>
             </div>
-            {renderNotificationButton()}
+            
+            {notificationPermission === 'default' && (
+                <button 
+                    className="notification-permission-button"
+                    onClick={requestNotificationPermission}
+                >
+                    Enable Notifications
+                </button>
+            )}
+            
             <div className="chat-window" ref={chatWindowRef}>
                 {messages.map((msg, index) => (
                     <div
                         key={index}
-                        className={`chat-message ${msg.sender === userId ? 'chat-message-right' : 'chat-message-left'}`}>
+                        className={`chat-message ${msg.isMe ? 'chat-message-right' : 'chat-message-left'}`}
+                    >
                         <div className="message-content">
                             <p>{msg.text}</p>
                             <span className="message-time">
                                 {formatTime(msg.timestamp)}
                             </span>
+                            <span className="message-sender">
+                                {msg.isMe ? 'You' : 'Other'}
+                            </span>
                         </div>
                     </div>
                 ))}
             </div>
+            
             <form className="chat-form" onSubmit={sendMessage}>
                 <input
                     className="chat-input"
@@ -204,7 +214,7 @@ const Chat = () => {
                 <button 
                     className="chat-send-button" 
                     type="submit"
-                    disabled={!message.trim()}
+                    disabled={!message.trim() || !deviceId}
                 >
                     Send
                 </button>

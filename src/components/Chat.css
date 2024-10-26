@@ -1,4 +1,3 @@
-/* Chat container styling */
 .chat-container {
     max-width: 600px;
     margin: 50px auto;
@@ -10,7 +9,6 @@
     font-family: 'Lucida Handwriting', cursive;
 }
 
-/* Chat header styling */
 .chat-header {
     display: flex;
     justify-content: space-between;
@@ -18,14 +16,12 @@
     margin-bottom: 20px;
 }
 
-/* Chat title styling */
 .chat-title {
     margin: 0;
     font-family: 'Cursive', sans-serif;
     color: #ff69b4;
 }
 
-/* Status indicator */
 .status-indicator {
     padding: 5px 10px;
     border-radius: 15px;
@@ -43,7 +39,6 @@
     color: white;
 }
 
-/* Chat window styling */
 .chat-window {
     max-height: 450px;
     overflow-y: auto;
@@ -58,9 +53,8 @@
     scroll-behavior: smooth;
 }
 
-/* Message styling */
 .chat-message {
-    margin-bottom: 10px;
+    margin-bottom: 20px;
     padding: 10px;
     border-radius: 5px;
     max-width: 70%;
@@ -69,49 +63,44 @@
     animation: fadeIn 0.5s ease-in-out;
 }
 
-/* Message content container */
 .message-content {
     position: relative;
+    padding-bottom: 20px;
 }
 
-/* Message time styling */
 .message-time {
     font-size: 12px;
     color: #666;
     position: absolute;
-    bottom: -18px;
+    bottom: 0;
     right: 0;
 }
 
-/* Outgoing message styling */
+.message-sender {
+    font-size: 12px;
+    color: #666;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+
 .chat-message-right {
     background-color: #ffb3d9;
     margin-left: auto;
     border-radius: 10px 10px 0 10px;
 }
 
-.chat-message-right .message-time {
-    right: 0;
-}
-
-/* Incoming message styling */
 .chat-message-left {
     background-color: #f0e68c;
     margin-right: auto;
     border-radius: 10px 10px 10px 0;
 }
 
-.chat-message-left .message-time {
-    left: 0;
-}
-
-/* Form styling */
 .chat-form {
     display: flex;
     gap: 10px;
 }
 
-/* Input field styling */
 .chat-input {
     flex-grow: 1;
     padding: 10px;
@@ -121,7 +110,6 @@
     box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.1);
 }
 
-/* Send button styling */
 .chat-send-button {
     padding: 10px 20px;
     background-color: #ff69b4;
@@ -144,7 +132,6 @@
     transform: none;
 }
 
-/* Notification permission button */
 .notification-permission-button {
     background-color: #ff69b4;
     color: white;
@@ -164,26 +151,6 @@
     background-color: #ff1493;
 }
 
-/* Scrollbar styling */
-.chat-window::-webkit-scrollbar {
-    width: 8px;
-}
-
-.chat-window::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.chat-window::-webkit-scrollbar-thumb {
-    background: #ff69b4;
-    border-radius: 4px;
-}
-
-.chat-window::-webkit-scrollbar-thumb:hover {
-    background: #ff1493;
-}
-
-/* Animation keyframes */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -195,7 +162,6 @@
     }
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
     .chat-container {
         margin: 20px;
@@ -205,51 +171,44 @@
     .chat-window {
         height: 350px;
     }
-    
-        .chat-message {
-            max-width: 85%;
-        }
-    
-        .chat-title {
-            font-size: 24px;
-        }
-    
-        .chat-input {
-            font-size: 14px;
-        }
-    
-        .chat-send-button {
-            padding: 8px 16px;
-            font-size: 14px;
-        }
+
+    .chat-message {
+        max-width: 85%;
     }
-    
-    @media (max-width: 480px) {
-        .chat-container {
-            margin: 10px;
-            padding: 10px;
-        }
-    
-        .chat-window {
-            height: 300px;
-        }
-    
-        .chat-message {
-            max-width: 90%;
-            padding: 8px;
-        }
-    
-        .chat-title {
-            font-size: 20px;
-        }
-    
-        .status-indicator {
-            font-size: 12px;
-            padding: 4px 8px;
-        }
-    
-        .message-time {
-            font-size: 10px;
-            bottom: -15px;
-        }
+
+    .chat-title {
+        font-size: 24px;
     }
+
+    .chat-input {
+        font-size: 14px;
+    }
+
+    .chat-send-button {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chat-container {
+        margin: 10px;
+        padding: 10px;
+    }
+
+    .chat-window {
+        height: 300px;
+    }
+
+    .chat-message {
+        max-width: 90%;
+    }
+
+    .chat-title {
+        font-size: 20px;
+    }
+
+    .message-time {
+        font-size: 10px;
+    }
+}
