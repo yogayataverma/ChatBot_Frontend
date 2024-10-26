@@ -3,7 +3,6 @@ import io from 'socket.io-client';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import './Chat.css';
 
-// Move socket initialization inside the component to avoid shared state across instances
 const Chat = () => {
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
@@ -15,6 +14,13 @@ const Chat = () => {
     const chatWindowRef = useRef(null);
     const notificationSound = useRef(new Audio('/notification.mp3'));
     const socketRef = useRef(null);
+
+    // Scroll chat to bottom
+    const scrollToBottom = useCallback(() => {
+        if (chatWindowRef.current) {
+            chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+        }
+    }, []);
 
     // Initialize socket connection
     useEffect(() => {
@@ -140,13 +146,14 @@ const Chat = () => {
             socket.off('userStatus');
             socket.off('error');
         };
-    }, [deviceId, showNotification]);
+    }, [deviceId, showNotification, scrollToBottom]); // Added scrollToBottom to dependency array
 
-    // Scroll chat to bottom
-    const scrollToBottom = useCallback(() => {
-        if (chatWindowRef.current) {
-            chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-        }
+    // Format timestamp
+    const formatTime = useCallback((timestamp) => {
+        return new Date(timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     }, []);
 
     // Send message
@@ -166,14 +173,6 @@ const Chat = () => {
             scrollToBottom();
         }
     };
-
-    // Format timestamp
-    const formatTime = useCallback((timestamp) => {
-        return new Date(timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }, []);
 
     return (
         <div className="chat-container">
