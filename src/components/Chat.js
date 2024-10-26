@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
-import { getDeviceFingerprint } from '../utils/deviceFingerprint';
+import { getDeviceFingerprint } from './utils/deviceFingerprint';
 import './Chat.css';
 
 const Chat = () => {
@@ -12,7 +12,7 @@ const Chat = () => {
     const [deviceId, setDeviceId] = useState('');
     const [isConnected, setIsConnected] = useState(false);
     const chatWindowRef = useRef(null);
-    const notificationSound = useRef(new Audio('/notification.mp3'));
+    const notificationSound = useRef(new Audio('notification.mp3'));
     const socketRef = useRef(null);
 
     // Scroll chat to bottom
