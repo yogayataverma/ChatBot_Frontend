@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import './Chat.css';  // Assuming you have this CSS file
 
-const socket = io('https://chatbot-backend-etdm.onrender.com:5000/');  // Connect to the backend
+// Socket.IO connection - ensure HTTPS and no port number for Render
+const socket = io('https://chatbot-backend-etdm.onrender.com', {
+    transports: ['websocket', 'polling'],  // Ensure proper transports for better compatibility
+    withCredentials: true
+});
 
 const Chat = () => {
     const [message, setMessage] = useState('');
