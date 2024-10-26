@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import './Chat.css';  // Assuming you have this CSS file
 
 // Connect to the backend
-const socket = io('https://chatbot-backend-etdm.onrender.com:5000/');
+const socket = io('https://chatbot-backend-etdm.onrender.com');
 
 const Chat = () => {
     const [message, setMessage] = useState('');
