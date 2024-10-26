@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 import './Chat.css';
 
@@ -37,8 +37,8 @@ const Chat = () => {
         }
     };
 
-    // Function to show notification
-    const showNotification = (msg) => {
+    // Function to show notification - moved into useCallback
+    const showNotification = useCallback((msg) => {
         // Play notification sound
         try {
             notificationSound.play().catch(error => {
@@ -68,7 +68,7 @@ const Chat = () => {
                 console.error('Error showing notification:', error);
             }
         }
-    };
+    }, [notificationPermission, isTabActive]); // Added dependencies
 
     // Handle tab visibility
     useEffect(() => {
@@ -134,7 +134,7 @@ const Chat = () => {
             socket.off('userStatus');
             socket.off('error');
         };
-    }, [isTabActive, notificationPermission]);
+    }, [showNotification]); // Added showNotification to dependencies
 
     // Handle sending messages
     const sendMessage = (e) => {
