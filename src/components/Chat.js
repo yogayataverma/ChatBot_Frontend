@@ -12,7 +12,7 @@ const Chat = () => {
     const [deviceId, setDeviceId] = useState('');
     const [isConnected, setIsConnected] = useState(false);
     const chatWindowRef = useRef(null);
-    const notificationSound = useRef(new Audio('notification.mp3'));
+    const notificationSound = useRef(new Audio('./notification.mp3'));
     const socketRef = useRef(null);
 
     // Scroll chat to bottom
