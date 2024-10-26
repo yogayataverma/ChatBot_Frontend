@@ -12,17 +12,17 @@ const Chat = () => {
     const [userStatus, setUserStatus] = useState('offline');
     const chatWindowRef = useRef(null);
     
-    // Create audio element for notification sound
+    // Store the current user's identifier
+    const [userId] = useState('me'); // You could also get this from props or context
+    
     const notificationSound = useRef(new Audio('/notification.mp3'));
 
-    // Function to scroll to bottom of chat
     const scrollToBottom = () => {
         if (chatWindowRef.current) {
             chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
         }
     };
 
-    // Function to handle notification permissions
     const requestNotificationPermission = async () => {
         try {
             const permission = await Notification.requestPermission();
@@ -37,9 +37,7 @@ const Chat = () => {
         }
     };
 
-    // Function to show notification - moved into useCallback
     const showNotification = useCallback((msg) => {
-        // Play notification sound
         try {
             notificationSound.current.play().catch(error => {
                 console.log('Error playing notification sound:', error);
@@ -48,7 +46,6 @@ const Chat = () => {
             console.log('Error with audio playback:', error);
         }
 
-        // Show desktop notification if permission granted and tab is not active
         if (notificationPermission === 'granted' && !isTabActive) {
             try {
                 const notification = new Notification('New Message in Connectify', {
@@ -68,9 +65,8 @@ const Chat = () => {
                 console.error('Error showing notification:', error);
             }
         }
-    }, [notificationPermission, isTabActive, notificationSound]); // Added notificationSound to dependencies
+    }, [notificationPermission, isTabActive]);
 
-    // Handle tab visibility
     useEffect(() => {
         const handleVisibilityChange = () => {
             setIsTabActive(!document.hidden);
@@ -83,20 +79,18 @@ const Chat = () => {
         };
     }, []);
 
-    // Request notification permission on component mount
     useEffect(() => {
         requestNotificationPermission();
     }, []);
 
-    // Handle messages and socket events
     useEffect(() => {
-        // Handle previous messages
+        // Handle previous messages with correct isMe flag
         socket.on('previousMessages', (msgs) => {
             setMessages(msgs.map(msg => ({
                 text: msg.text,
                 sender: msg.sender,
                 timestamp: msg.timestamp,
-                isMe: msg.sender === 'me'
+                isMe: msg.sender === userId // Compare with current user's ID
             })));
             scrollToBottom();
         });
@@ -110,22 +104,19 @@ const Chat = () => {
                     text: msg.text, 
                     sender: msg.sender,
                     timestamp: msg.timestamp,
-                    isMe: false
+                    isMe: msg.sender === userId // Compare with current user's ID
                 }
             ]);
             showNotification(msg);
             scrollToBottom();
         });
 
-        // Handle user status updates
         socket.on('userStatus', (data) => {
             setUserStatus(data.status);
         });
 
-        // Handle errors
         socket.on('error', (error) => {
             console.error('Socket error:', error);
-            // You could add a toast notification here
         });
 
         return () => {
@@ -134,15 +125,14 @@ const Chat = () => {
             socket.off('userStatus');
             socket.off('error');
         };
-    }, [showNotification]); // Added showNotification to dependencies
+    }, [showNotification, userId]); // Added userId to dependencies
 
-    // Handle sending messages
     const sendMessage = (e) => {
         e.preventDefault();
         if (message.trim()) {
             const newMessage = { 
                 text: message, 
-                sender: 'me',
+                sender: userId, // Use userId instead of hardcoded 'me'
                 timestamp: new Date(),
                 isMe: true
             };
@@ -158,7 +148,6 @@ const Chat = () => {
         }
     };
 
-    // Format timestamp
     const formatTime = (timestamp) => {
         return new Date(timestamp).toLocaleTimeString([], { 
             hour: '2-digit', 
@@ -166,7 +155,6 @@ const Chat = () => {
         });
     };
 
-    // Render notification permission button if needed
     const renderNotificationButton = () => {
         if (notificationPermission === 'default') {
             return (
@@ -194,7 +182,7 @@ const Chat = () => {
                 {messages.map((msg, index) => (
                     <div
                         key={index}
-                        className={`chat-message ${msg.isMe ? 'chat-message-right' : 'chat-message-left'}`}>
+                        className={`chat-message ${msg.sender === userId ? 'chat-message-right' : 'chat-message-left'}`}>
                         <div className="message-content">
                             <p>{msg.text}</p>
                             <span className="message-time">
