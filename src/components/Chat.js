@@ -13,7 +13,7 @@ const Chat = () => {
     const chatWindowRef = useRef(null);
     
     // Create audio element for notification sound
-    const notificationSound = new Audio('/notification.mp3');
+    const notificationSound = useRef(new Audio('/notification.mp3'));
 
     // Function to scroll to bottom of chat
     const scrollToBottom = () => {
@@ -41,7 +41,7 @@ const Chat = () => {
     const showNotification = useCallback((msg) => {
         // Play notification sound
         try {
-            notificationSound.play().catch(error => {
+            notificationSound.current.play().catch(error => {
                 console.log('Error playing notification sound:', error);
             });
         } catch (error) {
@@ -68,7 +68,7 @@ const Chat = () => {
                 console.error('Error showing notification:', error);
             }
         }
-    }, [notificationPermission, isTabActive]); // Added dependencies
+    }, [notificationPermission, isTabActive, notificationSound]); // Added notificationSound to dependencies
 
     // Handle tab visibility
     useEffect(() => {
