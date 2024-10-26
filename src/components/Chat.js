@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import './Chat.css';
-import notificationSoundFile from './notification.mp3';
+import notificationSoundFile from '../assets/notification.mp3';
 
 const Chat = () => {
     const [message, setMessage] = useState('');
@@ -16,21 +16,33 @@ const Chat = () => {
     const notificationSound = useRef(new Audio(notificationSoundFile));
     const socketRef = useRef(null);
 
-    // Scroll chat to bottom
-    const scrollToBottom = useCallback(() => {
-        if (chatWindowRef.current) {
-            chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-        }
-    }, []);
-
-    // Initialize socket connection
+    // Initialize socket connection with error handling
     useEffect(() => {
-        socketRef.current = io('https://chatbot-backend-etdm.onrender.com');
-        return () => {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-            }
-        };
+        try {
+            socketRef.current = io('http://localhost:4000', {
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+            });
+
+            socketRef.current.on('connect', () => {
+                console.log('Connected to server');
+                setIsConnected(true);
+            });
+
+            socketRef.current.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                setIsConnected(false);
+            });
+
+            return () => {
+                if (socketRef.current) {
+                    socketRef.current.disconnect();
+                }
+            };
+        } catch (error) {
+            console.error('Socket initialization error:', error);
+        }
     }, []);
 
     // Initialize device fingerprint
@@ -39,34 +51,32 @@ const Chat = () => {
             try {
                 const id = await getDeviceFingerprint();
                 setDeviceId(id);
-                if (socketRef.current) {
+                if (socketRef.current?.connected) {
                     socketRef.current.emit('registerDevice', { deviceId: id });
-                    setIsConnected(true);
                 }
             } catch (error) {
                 console.error('Error initializing device:', error);
                 const fallbackId = 'user-' + Math.random().toString(36).substr(2, 9);
                 setDeviceId(fallbackId);
-                if (socketRef.current) {
+                if (socketRef.current?.connected) {
                     socketRef.current.emit('registerDevice', { deviceId: fallbackId });
-                    setIsConnected(true);
                 }
             }
         };
 
-        initializeDevice();
+        if (isConnected) {
+            initializeDevice();
+        }
+    }, [isConnected]);
+
+    // Scroll chat to bottom
+    const scrollToBottom = useCallback(() => {
+        if (chatWindowRef.current) {
+            chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+        }
     }, []);
 
-    // Cleanup effect for device unregistration
-    useEffect(() => {
-        return () => {
-            if (isConnected && deviceId && socketRef.current) {
-                socketRef.current.emit('unregisterDevice', { deviceId });
-            }
-        };
-    }, [isConnected, deviceId]);
-
-    // Notification permission
+    // Request notification permission
     const requestNotificationPermission = async () => {
         try {
             const permission = await Notification.requestPermission();
@@ -79,12 +89,14 @@ const Chat = () => {
     // Show notification
     const showNotification = useCallback((msg) => {
         try {
-            notificationSound.current.play().catch(console.error);
+            if (msg.sender !== deviceId) {
+                notificationSound.current.play().catch(console.error);
+            }
         } catch (error) {
             console.error('Error playing notification sound:', error);
         }
 
-        if (notificationPermission === 'granted' && !isTabActive) {
+        if (notificationPermission === 'granted' && !isTabActive && msg.sender !== deviceId) {
             try {
                 const notification = new Notification('New Message in Connectify', {
                     body: `${msg.sender === deviceId ? 'You' : 'Other'}: ${msg.text}`,
@@ -103,7 +115,7 @@ const Chat = () => {
         }
     }, [notificationPermission, isTabActive, deviceId]);
 
-    // Tab visibility
+    // Tab visibility handler
     useEffect(() => {
         const handleVisibilityChange = () => setIsTabActive(!document.hidden);
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -112,19 +124,9 @@ const Chat = () => {
 
     // Socket event handlers
     useEffect(() => {
-        if (!deviceId || !socketRef.current) return;
+        if (!socketRef.current || !deviceId) return;
 
-        const socket = socketRef.current;
-
-        socket.on('previousMessages', (msgs) => {
-            setMessages(msgs.map(msg => ({
-                ...msg,
-                isMe: msg.sender === deviceId
-            })));
-            scrollToBottom();
-        });
-
-        socket.on('message', (msg) => {
+        socketRef.current.on('message', (msg) => {
             setMessages(prev => [...prev, {
                 ...msg,
                 isMe: msg.sender === deviceId
@@ -133,21 +135,24 @@ const Chat = () => {
             scrollToBottom();
         });
 
-        socket.on('userStatus', (data) => {
+        socketRef.current.on('previousMessages', (msgs) => {
+            setMessages(msgs.map(msg => ({
+                ...msg,
+                isMe: msg.sender === deviceId
+            })));
+            scrollToBottom();
+        });
+
+        socketRef.current.on('userStatus', (data) => {
             setUserStatus(data.status);
         });
 
-        socket.on('error', (error) => {
-            console.error('Socket error:', error);
-        });
-
         return () => {
-            socket.off('previousMessages');
-            socket.off('message');
-            socket.off('userStatus');
-            socket.off('error');
+            socketRef.current.off('message');
+            socketRef.current.off('previousMessages');
+            socketRef.current.off('userStatus');
         };
-    }, [deviceId, showNotification, scrollToBottom]); // Added scrollToBottom to dependency array
+    }, [deviceId, showNotification, scrollToBottom]);
 
     // Format timestamp
     const formatTime = useCallback((timestamp) => {
@@ -158,31 +163,34 @@ const Chat = () => {
     }, []);
 
     // Send message
-    const sendMessage = (e) => {
+    const sendMessage = useCallback((e) => {
         e.preventDefault();
-        if (message.trim() && deviceId && socketRef.current) {
+        if (message.trim() && deviceId && socketRef.current?.connected) {
             const newMessage = {
-                text: message,
+                text: message.trim(),
                 sender: deviceId,
-                timestamp: new Date(),
-                isMe: true
+                timestamp: new Date().toISOString()
             };
             
             socketRef.current.emit('chatMessage', newMessage);
-            setMessages(prev => [...prev, newMessage]);
             setMessage('');
-            scrollToBottom();
         }
-    };
+    }, [message, deviceId]);
 
     return (
         <div className="chat-container">
             <div className="chat-header">
                 <h1 className="chat-title">Connectify</h1>
                 <div className={`status-indicator ${userStatus}`}>
-                    {userStatus === 'online' ? 'Online' : 'Offline'}
+                    {isConnected ? userStatus : 'Disconnected'}
                 </div>
             </div>
+            
+            {!isConnected && (
+                <div className="connection-error">
+                    Attempting to connect to server...
+                </div>
+            )}
             
             {notificationPermission === 'default' && (
                 <button 
@@ -224,7 +232,7 @@ const Chat = () => {
                 <button 
                     className="chat-send-button" 
                     type="submit"
-                    disabled={!message.trim() || !deviceId}
+                    disabled={!message.trim() || !deviceId || !isConnected}
                 >
                     Send
                 </button>
