@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
-import { getDeviceFingerprint } from './utils/deviceFingerprint';
+import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import './Chat.css';
 
 const Chat = () => {
