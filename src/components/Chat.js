@@ -13,10 +13,7 @@ const Chat = () => {
   const [deviceId, setDeviceId] = useState('');
   const chatWindowRef = useRef(null);
   const socketRef = useRef(null);
-  const { permission, supported } = useNotification(); // Now using the context
-
-  // Notification context to handle permissions
-  const notificationContext = useNotification();
+  const { permission, supported } = useNotification(); // Using only what we need
 
   const scrollToBottom = useCallback(() => {
     if (chatWindowRef.current) {
