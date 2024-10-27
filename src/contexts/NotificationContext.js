@@ -6,7 +6,7 @@ const NotificationContext = createContext();
 // NotificationProvider component
 export const NotificationProvider = ({ children }) => {
   const [permission, setPermission] = useState('default');
-  const supported = 'Notification' in window;  // Direct assignment since we don't need to update this
+  const supported = 'Notification' in window;  // Direct assignment, no need for setSupported
 
   useEffect(() => {
     if (supported) {
