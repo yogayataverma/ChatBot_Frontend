@@ -1,22 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+// Create NotificationContext
 const NotificationContext = createContext();
 
+// NotificationProvider component
 export const NotificationProvider = ({ children }) => {
-    const [permission, setPermission] = useState('default'); // Initialize with 'default' or the actual permission
-    const supported = 'Notification' in window;
+  const [permission, setPermission] = useState('default');
 
-    useEffect(() => {
-        if (supported) {
-            Notification.requestPermission().then((perm) => setPermission(perm));
-        }
-    }, [supported]);
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPermission(Notification.permission);
+    }
+  }, []);
 
-    return (
-        <NotificationContext.Provider value={{ permission, supported }}>
-            {children}
-        </NotificationContext.Provider>
-    );
+  return (
+    <NotificationContext.Provider value={{ permission }}>
+      {children}
+    </NotificationContext.Provider>
+  );
 };
 
-export const useNotification = () => useContext(NotificationContext);
+// Custom hook to use NotificationContext
+export const useNotification = () => {
+  return useContext(NotificationContext);
+};

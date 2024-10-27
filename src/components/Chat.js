@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
-// Removed usePushNotifications as it was unused
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from '../contexts/NotificationContext'; // Custom Notification hook
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './Chat.css';
@@ -14,10 +13,10 @@ const Chat = () => {
   const [deviceId, setDeviceId] = useState('');
   const chatWindowRef = useRef(null);
   const socketRef = useRef(null);
-  const { permission, supported } = useNotification();
 
-  // If you want to use push notifications, you can uncomment the following line
-  // const { subscription, registration, error } = usePushNotifications(socketRef.current);
+  // Notification context to handle permissions
+  const notificationContext = useNotification();
+  const { permission = 'default', supported = false } = notificationContext || {}; // Safe destructuring
 
   const scrollToBottom = useCallback(() => {
     if (chatWindowRef.current) {
@@ -64,7 +63,7 @@ const Chat = () => {
     }
   }, [isConnected]);
 
-  // Socket event handlers
+  // Handle incoming messages and user status
   useEffect(() => {
     if (!socketRef.current || !deviceId) return;
 
@@ -77,9 +76,6 @@ const Chat = () => {
         },
       ]);
       scrollToBottom();
-
-      // Example: Show a push notification for new messages (if using notifications)
-      // showNotification(msg.text);
     };
 
     const handlePreviousMessages = (msgs) => {
@@ -107,6 +103,7 @@ const Chat = () => {
     };
   }, [deviceId, scrollToBottom]);
 
+  // Send message to server
   const sendMessage = useCallback(
     (e) => {
       e.preventDefault();
@@ -118,7 +115,7 @@ const Chat = () => {
         };
 
         socketRef.current.emit('chatMessage', newMessage);
-        setMessage('');
+        setMessage(''); // Clear input
       }
     },
     [message, deviceId]
