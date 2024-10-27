@@ -1,18 +1,18 @@
-// NotificationContext.js
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+// Create NotificationContext
 const NotificationContext = createContext();
 
+// NotificationProvider component
 export const NotificationProvider = ({ children }) => {
-  const [permission, setPermission] = useState(Notification.permission);
-  const [supported, setSupported] = useState('Notification' in window);
+  const [permission, setPermission] = useState('default');
+  const supported = 'Notification' in window;  // Direct assignment since we don't need to update this
 
   useEffect(() => {
-    if (supported && permission === 'default') {
-      Notification.requestPermission().then((perm) => setPermission(perm));
+    if (supported) {
+      setPermission(Notification.permission);
     }
-  }, [supported, permission]);
+  }, [supported]);
 
   return (
     <NotificationContext.Provider value={{ permission, supported }}>
@@ -21,4 +21,13 @@ export const NotificationProvider = ({ children }) => {
   );
 };
 
-export const useNotification = () => useContext(NotificationContext);
+// Custom hook to use NotificationContext
+export const useNotification = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotification must be used within a NotificationProvider');
+  }
+  return context;
+};
+
+export default NotificationContext;
