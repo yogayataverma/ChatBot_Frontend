@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
-import { useNotification } from '../contexts/NotificationContext'; // Custom Notification hook
+import { useNotification } from '../contexts/NotificationContext';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './Chat.css';
@@ -13,10 +13,10 @@ const Chat = () => {
   const [deviceId, setDeviceId] = useState('');
   const chatWindowRef = useRef(null);
   const socketRef = useRef(null);
+  const { permission, supported } = useNotification(); // Now using the context
 
   // Notification context to handle permissions
   const notificationContext = useNotification();
-  const { permission = 'default', supported = false } = notificationContext || {}; // Safe destructuring
 
   const scrollToBottom = useCallback(() => {
     if (chatWindowRef.current) {

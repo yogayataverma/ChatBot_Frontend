@@ -1,13 +1,15 @@
 import React from 'react';
-import { NotificationProvider } from './contexts/NotificationContext'; // Adjust the path as necessary
+import { NotificationProvider } from './contexts/NotificationContext'; // Adjust path accordingly
 import Chat from './components/Chat';
 
-const App = () => {
-    return (
-        <NotificationProvider>
-            <Chat />
-        </NotificationProvider>
-    );
-};
+function App() {
+  return (
+    <NotificationProvider>
+      <div className="App">
+        <Chat />
+      </div>
+    </NotificationProvider>
+  );
+}
 
 export default App;
