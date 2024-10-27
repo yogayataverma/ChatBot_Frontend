@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
-import { usePushNotifications } from '../utils/pushManager';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useNotification } from '../contexts/NotificationContext';
+import MessageList from './MessageList';
+import MessageInput from './MessageInput';
 import './Chat.css';
 
 const Chat = () => {
@@ -11,22 +14,14 @@ const Chat = () => {
   const [deviceId, setDeviceId] = useState('');
   const chatWindowRef = useRef(null);
   const socketRef = useRef(null);
+  const { permission, supported } = useNotification();
 
-  // Initialize push notifications
-  const { subscription, registration } = usePushNotifications(socketRef.current);
+  const { subscription, registration, error } = usePushNotifications(socketRef.current);
 
-  // Utility functions
   const scrollToBottom = useCallback(() => {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
-  }, []);
-
-  const formatTime = useCallback((timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   }, []);
 
   // Initialize socket connection
@@ -103,20 +98,6 @@ const Chat = () => {
     };
   }, [deviceId, scrollToBottom]);
 
-  // Handle subscription and registration changes
-  useEffect(() => {
-    if (registration) {
-      // Handle registration updates here if necessary
-      console.log('Registration updated:', registration);
-    }
-    
-    if (subscription) {
-      // Handle subscription updates here if necessary
-      console.log('Subscription updated:', subscription);
-    }
-  }, [registration, subscription]); // Added missing dependencies
-
-  // Handle message sending
   const sendMessage = useCallback((e) => {
     e.preventDefault();
     if (message.trim() && deviceId && socketRef.current?.connected) {
@@ -138,6 +119,16 @@ const Chat = () => {
         <div className={`status-indicator ${userStatus}`}>
           {isConnected ? userStatus : 'Disconnected'}
         </div>
+        {!supported && (
+          <div className="notification-warning">
+            Notifications are not supported in this browser
+          </div>
+        )}
+        {permission === 'denied' && (
+          <div className="notification-warning">
+            Please enable notifications to receive message alerts
+          </div>
+        )}
       </div>
       
       {!isConnected && (
@@ -146,42 +137,17 @@ const Chat = () => {
         </div>
       )}
       
-      <div className="chat-window" ref={chatWindowRef}>
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`chat-message ${msg.isMe ? 'chat-message-right' : 'chat-message-left'}`}
-          >
-            <div className="message-content">
-              <p>{msg.text}</p>
-              <span className="message-time">
-                {formatTime(msg.timestamp)}
-              </span>
-              <span className="message-sender">
-                {msg.isMe ? 'You' : 'Other'}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <MessageList
+        messages={messages}
+        chatWindowRef={chatWindowRef}
+      />
       
-      <form className="chat-form" onSubmit={sendMessage}>
-        <input
-          className="chat-input"
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your message..."
-          maxLength={500}
-        />
-        <button 
-          className="chat-send-button" 
-          type="submit"
-          disabled={!message.trim() || !deviceId || !isConnected}
-        >
-          Send
-        </button>
-      </form>
+      <MessageInput
+        message={message}
+        setMessage={setMessage}
+        sendMessage={sendMessage}
+        isDisabled={!deviceId || !isConnected}
+      />
     </div>
   );
 };
