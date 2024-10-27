@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
-import { usePushNotifications } from '../hooks/usePushNotifications';
+// Removed usePushNotifications as it was unused
 import { useNotification } from '../contexts/NotificationContext';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -16,7 +16,7 @@ const Chat = () => {
   const socketRef = useRef(null);
   const { permission, supported } = useNotification();
 
-  // Remove unused variables here
+  // If you want to use push notifications, you can uncomment the following line
   // const { subscription, registration, error } = usePushNotifications(socketRef.current);
 
   const scrollToBottom = useCallback(() => {
@@ -69,18 +69,26 @@ const Chat = () => {
     if (!socketRef.current || !deviceId) return;
 
     const handleMessage = (msg) => {
-      setMessages(prev => [...prev, {
-        ...msg,
-        isMe: msg.sender === deviceId
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          ...msg,
+          isMe: msg.sender === deviceId,
+        },
+      ]);
       scrollToBottom();
+
+      // Example: Show a push notification for new messages (if using notifications)
+      // showNotification(msg.text);
     };
 
     const handlePreviousMessages = (msgs) => {
-      setMessages(msgs.map(msg => ({
-        ...msg,
-        isMe: msg.sender === deviceId
-      })));
+      setMessages(
+        msgs.map((msg) => ({
+          ...msg,
+          isMe: msg.sender === deviceId,
+        }))
+      );
       scrollToBottom();
     };
 
@@ -99,19 +107,22 @@ const Chat = () => {
     };
   }, [deviceId, scrollToBottom]);
 
-  const sendMessage = useCallback((e) => {
-    e.preventDefault();
-    if (message.trim() && deviceId && socketRef.current?.connected) {
-      const newMessage = {
-        text: message.trim(),
-        sender: deviceId,
-        timestamp: new Date().toISOString()
-      };
+  const sendMessage = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (message.trim() && deviceId && socketRef.current?.connected) {
+        const newMessage = {
+          text: message.trim(),
+          sender: deviceId,
+          timestamp: new Date().toISOString(),
+        };
 
-      socketRef.current.emit('chatMessage', newMessage);
-      setMessage('');
-    }
-  }, [message, deviceId]);
+        socketRef.current.emit('chatMessage', newMessage);
+        setMessage('');
+      }
+    },
+    [message, deviceId]
+  );
 
   return (
     <div className="chat-container">
@@ -131,18 +142,15 @@ const Chat = () => {
           </div>
         )}
       </div>
-      
+
       {!isConnected && (
         <div className="connection-error">
           Attempting to connect to server...
         </div>
       )}
-      
-      <MessageList
-        messages={messages}
-        chatWindowRef={chatWindowRef}
-      />
-      
+
+      <MessageList messages={messages} chatWindowRef={chatWindowRef} />
+
       <MessageInput
         message={message}
         setMessage={setMessage}
