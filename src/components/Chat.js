@@ -114,7 +114,7 @@ const Chat = () => {
       // Handle subscription updates here if necessary
       console.log('Subscription updated:', subscription);
     }
-  }, [registration, subscription]);
+  }, [registration, subscription]); // Added missing dependencies
 
   // Handle message sending
   const sendMessage = useCallback((e) => {
