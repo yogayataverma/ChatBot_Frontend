@@ -15,6 +15,20 @@ const Chat = () => {
   // Initialize push notifications
   const { subscription, registration } = usePushNotifications(socketRef.current);
 
+  // Utility functions
+  const scrollToBottom = useCallback(() => {
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  }, []);
+
+  const formatTime = useCallback((timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, []);
+
   // Initialize socket connection
   useEffect(() => {
     socketRef.current = io(process.env.REACT_APP_SOCKET_URL, {
@@ -58,57 +72,49 @@ const Chat = () => {
   useEffect(() => {
     if (!socketRef.current || !deviceId) return;
 
-    socketRef.current.on('message', (msg) => {
+    const handleMessage = (msg) => {
       setMessages(prev => [...prev, {
         ...msg,
         isMe: msg.sender === deviceId
       }]);
       scrollToBottom();
-    });
+    };
 
-    socketRef.current.on('previousMessages', (msgs) => {
+    const handlePreviousMessages = (msgs) => {
       setMessages(msgs.map(msg => ({
         ...msg,
         isMe: msg.sender === deviceId
       })));
       scrollToBottom();
-    });
+    };
 
-    socketRef.current.on('userStatus', (data) => {
+    const handleUserStatus = (data) => {
       setUserStatus(data.status);
-    });
+    };
+
+    socketRef.current.on('message', handleMessage);
+    socketRef.current.on('previousMessages', handlePreviousMessages);
+    socketRef.current.on('userStatus', handleUserStatus);
 
     return () => {
-      socketRef.current.off('message');
-      socketRef.current.off('previousMessages');
-      socketRef.current.off('userStatus');
+      socketRef.current.off('message', handleMessage);
+      socketRef.current.off('previousMessages', handlePreviousMessages);
+      socketRef.current.off('userStatus', handleUserStatus);
     };
-  }, [deviceId, scrollToBottom]); // Include scrollToBottom here
+  }, [deviceId, scrollToBottom]);
 
   // Handle subscription and registration changes
   useEffect(() => {
     if (registration) {
       // Handle registration updates here if necessary
+      console.log('Registration updated:', registration);
     }
     
     if (subscription) {
       // Handle subscription updates here if necessary
+      console.log('Subscription updated:', subscription);
     }
-  }, [registration, subscription]); // Add registration and subscription to dependencies
-
-  // Utility functions
-  const scrollToBottom = useCallback(() => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
-  }, []);
-
-  const formatTime = useCallback((timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, []);
+  }, [registration, subscription]);
 
   // Handle message sending
   const sendMessage = useCallback((e) => {
