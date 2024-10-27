@@ -83,7 +83,7 @@ const Chat = () => {
       socketRef.current.off('previousMessages');
       socketRef.current.off('userStatus');
     };
-  }, [deviceId]);
+  }, [deviceId, scrollToBottom]); // Include scrollToBottom here
 
   // Utility functions
   const scrollToBottom = useCallback(() => {
@@ -108,7 +108,7 @@ const Chat = () => {
         sender: deviceId,
         timestamp: new Date().toISOString()
       };
-      
+
       socketRef.current.emit('chatMessage', newMessage);
       setMessage('');
     }
