@@ -13,7 +13,7 @@ const Chat = () => {
   const socketRef = useRef(null);
 
   // Initialize push notifications
-  const { subscription } = usePushNotifications(socketRef.current);
+  const { subscription, registration } = usePushNotifications(socketRef.current);
 
   // Initialize socket connection
   useEffect(() => {
@@ -84,6 +84,17 @@ const Chat = () => {
       socketRef.current.off('userStatus');
     };
   }, [deviceId, scrollToBottom]); // Include scrollToBottom here
+
+  // Handle subscription and registration changes
+  useEffect(() => {
+    if (registration) {
+      // Handle registration updates here if necessary
+    }
+    
+    if (subscription) {
+      // Handle subscription updates here if necessary
+    }
+  }, [registration, subscription]); // Add registration and subscription to dependencies
 
   // Utility functions
   const scrollToBottom = useCallback(() => {
