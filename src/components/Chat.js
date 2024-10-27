@@ -16,7 +16,8 @@ const Chat = () => {
   const socketRef = useRef(null);
   const { permission, supported } = useNotification();
 
-  const { subscription, registration, error } = usePushNotifications(socketRef.current);
+  // Remove unused variables here
+  // const { subscription, registration, error } = usePushNotifications(socketRef.current);
 
   const scrollToBottom = useCallback(() => {
     if (chatWindowRef.current) {

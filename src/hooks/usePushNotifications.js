@@ -108,7 +108,7 @@ export const usePushNotifications = (socket) => {
         subscription.unsubscribe().catch(console.error);
       }
     };
-  }, [socket]);
+  }, [registration, subscription, socket]);
 
   return { subscription, registration, error };
 };
