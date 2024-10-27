@@ -1,156 +1,96 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { useNotification } from '../contexts/NotificationContext';
-import MessageList from './MessageList';
-import MessageInput from './MessageInput';
 import './Chat.css';
+
+const SOCKET_URL = 'http://localhost:5000';
 
 const Chat = () => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [userStatus, setUserStatus] = useState('offline');
-  const [deviceId, setDeviceId] = useState('');
-  const chatWindowRef = useRef(null);
-  const socketRef = useRef(null);
-  const { permission, supported } = useNotification(); // Using only what we need
+  const [deviceId] = useState('user-' + Math.random().toString(36).substr(2, 9));
+  const socketRef = useRef();
+  const chatWindowRef = useRef();
 
-  const scrollToBottom = useCallback(() => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
-  }, []);
-
-  // Initialize socket connection
   useEffect(() => {
-    socketRef.current = io(process.env.REACT_APP_SOCKET_URL, {
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    socketRef.current = io(SOCKET_URL);
 
     socketRef.current.on('connect', () => {
       setIsConnected(true);
-      console.log('Connected to server');
+      socketRef.current.emit('registerDevice', { deviceId });
     });
 
-    socketRef.current.on('connect_error', (error) => {
-      setIsConnected(false);
-      console.error('Connection error:', error);
+    socketRef.current.on('message', (msg) => {
+      setMessages(prev => [...prev, { ...msg, isMe: msg.sender === deviceId }]);
+    });
+
+    socketRef.current.on('previousMessages', (msgs) => {
+      setMessages(msgs.map(msg => ({ ...msg, isMe: msg.sender === deviceId })));
     });
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      socketRef.current.disconnect();
     };
-  }, []);
+  }, [deviceId]);
 
-  // Initialize device ID
   useEffect(() => {
-    const generateDeviceId = () => {
-      return 'user-' + Math.random().toString(36).substr(2, 9);
-    };
-
-    const newDeviceId = generateDeviceId();
-    setDeviceId(newDeviceId);
-
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('registerDevice', { deviceId: newDeviceId });
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
-  }, [isConnected]);
+  }, [messages]);
 
-  // Handle incoming messages and user status
-  useEffect(() => {
-    if (!socketRef.current || !deviceId) return;
-
-    const handleMessage = (msg) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          ...msg,
-          isMe: msg.sender === deviceId,
-        },
-      ]);
-      scrollToBottom();
-    };
-
-    const handlePreviousMessages = (msgs) => {
-      setMessages(
-        msgs.map((msg) => ({
-          ...msg,
-          isMe: msg.sender === deviceId,
-        }))
-      );
-      scrollToBottom();
-    };
-
-    const handleUserStatus = (data) => {
-      setUserStatus(data.status);
-    };
-
-    socketRef.current.on('message', handleMessage);
-    socketRef.current.on('previousMessages', handlePreviousMessages);
-    socketRef.current.on('userStatus', handleUserStatus);
-
-    return () => {
-      socketRef.current.off('message', handleMessage);
-      socketRef.current.off('previousMessages', handlePreviousMessages);
-      socketRef.current.off('userStatus', handleUserStatus);
-    };
-  }, [deviceId, scrollToBottom]);
-
-  // Send message to server
-  const sendMessage = useCallback(
-    (e) => {
-      e.preventDefault();
-      if (message.trim() && deviceId && socketRef.current?.connected) {
-        const newMessage = {
-          text: message.trim(),
-          sender: deviceId,
-          timestamp: new Date().toISOString(),
-        };
-
-        socketRef.current.emit('chatMessage', newMessage);
-        setMessage(''); // Clear input
-      }
-    },
-    [message, deviceId]
-  );
+  const sendMessage = (e) => {
+    e.preventDefault();
+    if (message.trim() && isConnected) {
+      const newMessage = {
+        text: message.trim(),
+        sender: deviceId,
+        timestamp: new Date().toISOString()
+      };
+      socketRef.current.emit('chatMessage', newMessage);
+      setMessage('');
+    }
+  };
 
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h1 className="chat-title">Connectify</h1>
-        <div className={`status-indicator ${userStatus}`}>
-          {isConnected ? userStatus : 'Disconnected'}
+        <h1>Simple Chat</h1>
+        <div className={`status-indicator ${isConnected ? 'online' : 'offline'}`}>
+          {isConnected ? 'Connected' : 'Disconnected'}
         </div>
-        {!supported && (
-          <div className="notification-warning">
-            Notifications are not supported in this browser
-          </div>
-        )}
-        {permission === 'denied' && (
-          <div className="notification-warning">
-            Please enable notifications to receive message alerts
-          </div>
-        )}
       </div>
 
-      {!isConnected && (
-        <div className="connection-error">
-          Attempting to connect to server...
-        </div>
-      )}
+      <div className="message-list" ref={chatWindowRef}>
+        {messages.map((msg, index) => (
+          <div key={index} className={`message ${msg.isMe ? 'message-mine' : 'message-other'}`}>
+            <div className="message-content">
+              <div className="message-text">{msg.text}</div>
+              <div className="message-timestamp">
+                {new Date(msg.timestamp).toLocaleTimeString()}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
-      <MessageList messages={messages} chatWindowRef={chatWindowRef} />
-
-      <MessageInput
-        message={message}
-        setMessage={setMessage}
-        sendMessage={sendMessage}
-        isDisabled={!deviceId || !isConnected}
-      />
+      <form onSubmit={sendMessage} className="message-input-container">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type a message..."
+          disabled={!isConnected}
+          className="message-input"
+        />
+        <button
+          type="submit"
+          disabled={!isConnected || !message.trim()}
+          className="send-button"
+        >
+          Send
+        </button>
+      </form>
     </div>
   );
 };
