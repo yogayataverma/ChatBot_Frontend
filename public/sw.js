@@ -1,19 +1,51 @@
-// sw.js
+// public/sw.js
+const CACHE_NAME = 'chat-app-v1';
+
 self.addEventListener('install', (event) => {
-    self.skipWaiting();
-  });
+  console.log('Service Worker installing.');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll([
+        '/',
+        '/index.html',
+        '/static/js/bundle.js',
+        '/static/css/main.css',
+      ]);
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker activating.');
+  event.waitUntil(
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => caches.delete(name))
+        );
+      }),
+      // Take control of all clients
+      clients.claim()
+    ])
+  );
+});
+
+self.addEventListener('push', (event) => {
+  console.log('Push message received:', event);
   
-  self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
-  });
-  
-  self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json();
+    
     const options = {
-      body: event.data.text(),
-      icon: '/chat-icon.png',
-      badge: '/chat-badge.png',
+      body: data.body,
+      icon: data.icon || '/icon.png',
+      badge: '/badge.png',
       vibrate: [200, 100, 200],
-      tag: 'chat-message',
+      tag: 'chat-notification',
       renotify: true,
       actions: [
         {
@@ -24,33 +56,53 @@ self.addEventListener('install', (event) => {
           action: 'close',
           title: 'Dismiss'
         }
-      ]
+      ],
+      data: {
+        url: self.registration.scope
+      }
     };
-  
+
     event.waitUntil(
-      self.registration.showNotification('New Message in Connectify', options)
+      self.registration.showNotification(data.title, options)
     );
-  });
-  
-  self.addEventListener('notificationclick', (event) => {
-    event.notification.close();
-  
-    if (event.action === 'open') {
-      const urlToOpen = new URL('/', self.location.origin).href;
-  
-      event.waitUntil(
-        clients.matchAll({ type: 'window' }).then((windowClients) => {
-          // Check if there is already a window/tab open with the target URL
-          for (const client of windowClients) {
-            if (client.url === urlToOpen && 'focus' in client) {
-              return client.focus();
-            }
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('Notification clicked:', event);
+  event.notification.close();
+
+  if (event.action === 'open') {
+    const urlToOpen = event.notification.data.url;
+
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((windowClients) => {
+          // Find existing chat window
+          const chatClient = windowClients.find((client) => 
+            client.url === urlToOpen
+          );
+
+          if (chatClient) {
+            return chatClient.focus();
           }
-          // If no window/tab is open, open one
-          if (clients.openWindow) {
-            return clients.openWindow(urlToOpen);
-          }
+          
+          // Open new window if none exists
+          return clients.openWindow(urlToOpen);
         })
-      );
-    }
-  });
+    );
+  }
+});
+
+// Handle fetch events for offline support
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      })
+  );
+});
